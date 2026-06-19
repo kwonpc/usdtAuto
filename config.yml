@@ -1,0 +1,20 @@
+market: KRW-USDT
+trade_mode: paper
+initial_balance: 100000000
+poll_interval_seconds: 10
+
+fx_provider: manual
+manual_usd_krw_rate: 1370.0
+fx_rate_max_stale_seconds: 300
+
+buy_premium_threshold: -0.3
+sell_premium_threshold: 0.3
+neutral_band: 0.1
+
+round_trip_fee_rate: 0.001
+max_order_amount: 10000000
+daily_max_trade_amount: 50000000
+daily_max_loss_rate: -1.0
+paper_mode_days: 14
+
+database_url: sqlite:///./data/trading_bot.db

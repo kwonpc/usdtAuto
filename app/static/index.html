@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KRW-USDT Premium Bot</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">KRW-USDT Premium Bot</p>
+          <h1>환율 괴리 Paper Trading</h1>
+        </div>
+        <div class="actions">
+          <span id="updatedAt" class="updated">-</span>
+          <button id="startButton" class="button primary" type="button">Start</button>
+          <button id="stopButton" class="button" type="button">Stop</button>
+        </div>
+      </header>
+
+      <section class="status-band">
+        <div>
+          <span class="label">Bot Status</span>
+          <strong id="botStatus" class="status-pill">-</strong>
+        </div>
+        <div>
+          <span class="label">Trade Mode</span>
+          <strong id="tradeMode">-</strong>
+        </div>
+        <div>
+          <span class="label">Last Signal</span>
+          <strong id="lastSignal">-</strong>
+        </div>
+        <div>
+          <span class="label">Last Signal At</span>
+          <strong id="lastSignalAt">-</strong>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="panel premium-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Premium</p>
+              <h2 id="premiumRate">-</h2>
+            </div>
+            <span id="premiumState" class="state">-</span>
+          </div>
+          <div class="gauge" aria-hidden="true">
+            <div class="gauge-track">
+              <div id="premiumMarker" class="gauge-marker"></div>
+            </div>
+            <div class="gauge-labels">
+              <span>-1.0%</span>
+              <span>0%</span>
+              <span>+1.0%</span>
+            </div>
+          </div>
+          <div class="split">
+            <div>
+              <span class="label">Upbit USDT</span>
+              <strong id="upbitUsdtPrice">-</strong>
+            </div>
+            <div>
+              <span class="label">USD/KRW</span>
+              <strong id="usdKrwRate">-</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Portfolio</p>
+              <h2 id="totalAssetKrw">-</h2>
+            </div>
+          </div>
+          <div class="metrics">
+            <div>
+              <span class="label">KRW Balance</span>
+              <strong id="krwBalance">-</strong>
+            </div>
+            <div>
+              <span class="label">USDT Balance</span>
+              <strong id="usdtBalance">-</strong>
+            </div>
+            <div>
+              <span class="label">Avg Buy Price</span>
+              <strong id="avgBuyPrice">-</strong>
+            </div>
+            <div>
+              <span class="label">Today Profit</span>
+              <strong id="todayProfit">-</strong>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="grid lower">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Risk</p>
+              <h2>Daily Limits</h2>
+            </div>
+          </div>
+          <div class="metrics compact">
+            <div>
+              <span class="label">Today Trade Count</span>
+              <strong id="todayTradeCount">-</strong>
+            </div>
+            <div>
+              <span class="label">Last Error</span>
+              <strong id="lastError">-</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel table-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Trades</p>
+              <h2>Recent Executions</h2>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Side</th>
+                  <th>Price</th>
+                  <th>Volume</th>
+                  <th>Profit</th>
+                </tr>
+              </thead>
+              <tbody id="tradeRows">
+                <tr>
+                  <td colspan="5" class="empty">No trades</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script src="/static/dashboard.js"></script>
+  </body>
+</html>
