@@ -1,4 +1,5 @@
 from functools import lru_cache
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -28,6 +29,10 @@ class Settings(BaseModel):
 
     database_url: str = "sqlite:///./data/trading_bot.db"
     upbit_base_url: str = "https://api.upbit.com/v1"
+    jwt_secret_key: str = "change-this-secret-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 60 * 24
+    encryption_key: str | None = None
 
 
 @lru_cache
@@ -38,4 +43,5 @@ def get_settings() -> Settings:
 
     with config_path.open("r", encoding="utf-8") as f:
         raw = yaml.safe_load(f) or {}
+    raw.update({k.lower(): v for k, v in os.environ.items() if k in {"DATABASE_URL", "JWT_SECRET_KEY", "ENCRYPTION_KEY"}})
     return Settings(**raw)

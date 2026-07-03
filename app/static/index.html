@@ -3,38 +3,70 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>KRW-USDT Premium Bot</title>
-    <link rel="stylesheet" href="/static/styles.css" />
+    <title>USDT 자동매매봇</title>
+    <link rel="stylesheet" href="/static/styles.css?v=4" />
   </head>
   <body>
-    <main class="shell">
+    <main id="authView" class="shell auth-shell">
+      <section class="auth-panel">
+        <div>
+          <p class="eyebrow">USDT 자동매매봇</p>
+          <h1>매매봇 관리 로그인</h1>
+        </div>
+        <form id="authForm" class="form">
+          <label>
+            <span class="label">아이디</span>
+            <input id="loginId" autocomplete="username" required minlength="3" />
+          </label>
+          <label>
+            <span class="label">비밀번호</span>
+            <input id="password" type="password" autocomplete="current-password" required minlength="8" />
+          </label>
+          <div class="actions left">
+            <button id="loginButton" class="button primary" type="button">로그인</button>
+            <button id="registerButton" class="button" type="button">가입</button>
+          </div>
+          <p id="authMessage" class="message"></p>
+        </form>
+      </section>
+    </main>
+
+    <main id="appView" class="shell hidden">
       <header class="topbar">
         <div>
-          <p class="eyebrow">KRW-USDT Premium Bot</p>
-          <h1>환율 괴리 Paper Trading</h1>
+          <p class="eyebrow">USDT 자동매매봇</p>
+          <h1>매매봇 관리페이지</h1>
         </div>
         <div class="actions">
+          <span id="currentUser" class="updated">-</span>
           <span id="updatedAt" class="updated">-</span>
-          <button id="startButton" class="button primary" type="button">Start</button>
-          <button id="stopButton" class="button" type="button">Stop</button>
+          <button id="startButton" class="button primary" type="button">시작</button>
+          <button id="stopButton" class="button" type="button">중지</button>
+          <button id="logoutButton" class="button" type="button">로그아웃</button>
         </div>
       </header>
 
+      <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
       <section class="status-band">
         <div>
-          <span class="label">Bot Status</span>
+          <span class="label">봇 상태</span>
           <strong id="botStatus" class="status-pill">-</strong>
         </div>
         <div>
-          <span class="label">Trade Mode</span>
+          <span class="label">거래 모드</span>
           <strong id="tradeMode">-</strong>
         </div>
         <div>
-          <span class="label">Last Signal</span>
+          <span class="label">매매 전략</span>
+          <strong id="strategyType">-</strong>
+        </div>
+        <div>
+          <span class="label">최근 신호</span>
           <strong id="lastSignal">-</strong>
         </div>
         <div>
-          <span class="label">Last Signal At</span>
+          <span class="label">신호 발생시각</span>
           <strong id="lastSignalAt">-</strong>
         </div>
       </section>
@@ -43,7 +75,7 @@
         <article class="panel premium-panel">
           <div class="panel-head">
             <div>
-              <p class="eyebrow">Premium</p>
+              <p class="eyebrow">괴리율</p>
               <h2 id="premiumRate">-</h2>
             </div>
             <span id="premiumState" class="state">-</span>
@@ -60,11 +92,11 @@
           </div>
           <div class="split">
             <div>
-              <span class="label">Upbit USDT</span>
+              <span class="label">업비트 USDT</span>
               <strong id="upbitUsdtPrice">-</strong>
             </div>
             <div>
-              <span class="label">USD/KRW</span>
+              <span class="label">달러/원 환율</span>
               <strong id="usdKrwRate">-</strong>
             </div>
           </div>
@@ -73,25 +105,25 @@
         <article class="panel">
           <div class="panel-head">
             <div>
-              <p class="eyebrow">Portfolio</p>
+              <p class="eyebrow">보유자산</p>
               <h2 id="totalAssetKrw">-</h2>
             </div>
           </div>
           <div class="metrics">
             <div>
-              <span class="label">KRW Balance</span>
+              <span class="label">원화 잔고</span>
               <strong id="krwBalance">-</strong>
             </div>
             <div>
-              <span class="label">USDT Balance</span>
+              <span class="label">USDT 잔고</span>
               <strong id="usdtBalance">-</strong>
             </div>
             <div>
-              <span class="label">Avg Buy Price</span>
+              <span class="label">평균 매수가</span>
               <strong id="avgBuyPrice">-</strong>
             </div>
             <div>
-              <span class="label">Today Profit</span>
+              <span class="label">당일 손익</span>
               <strong id="todayProfit">-</strong>
             </div>
           </div>
@@ -102,51 +134,117 @@
         <article class="panel">
           <div class="panel-head">
             <div>
-              <p class="eyebrow">Risk</p>
-              <h2>Daily Limits</h2>
+              <p class="eyebrow">설정</p>
+              <h2>매매 설정관리</h2>
             </div>
           </div>
-          <div class="metrics compact">
-            <div>
-              <span class="label">Today Trade Count</span>
-              <strong id="todayTradeCount">-</strong>
-            </div>
-            <div>
-              <span class="label">Last Error</span>
-              <strong id="lastError">-</strong>
-            </div>
-          </div>
+          <form id="settingsForm" class="form settings-form">
+            <label><span class="label">마켓</span><input id="settingMarket" value="KRW-USDT" /></label>
+            <label><span class="label">거래 모드</span><select id="settingTradeMode"><option value="paper">가상매매</option><option value="live">실거래</option></select></label>
+            <label><span class="label">매매 전략</span><select id="settingStrategy"><option value="premium_rebalance">환율 괴리</option><option value="base_price_gap">기준가격</option></select></label>
+            <label><span class="label">API 키</span><select id="settingApiKey"><option value="">선택 안 함</option></select></label>
+            <label data-strategy-field="premium"><span class="label">매수 괴리율</span><input id="settingBuyPremium" type="number" step="0.01" /></label>
+            <label data-strategy-field="premium"><span class="label">매도 괴리율</span><input id="settingSellPremium" type="number" step="0.01" /></label>
+            <label data-strategy-field="base"><span class="label">기준가격</span><input id="settingBasePrice" type="number" step="0.1" /></label>
+            <label data-strategy-field="base"><span class="label">기준차이가격</span><input id="settingPriceGap" type="number" step="0.1" /></label>
+            <label><span class="label">1회 주문금액</span><input id="settingMaxOrder" type="number" step="1000" /></label>
+            <label><span class="label">수동 환율</span><input id="settingManualFx" type="number" step="0.1" /></label>
+            <p id="strategyHint" class="hint wide">-</p>
+            <button id="saveSettingsButton" class="button primary wide" type="button">설정 저장</button>
+          </form>
         </article>
 
         <article class="panel table-panel">
           <div class="panel-head">
             <div>
-              <p class="eyebrow">Trades</p>
-              <h2>Recent Executions</h2>
+              <p class="eyebrow">거래내역</p>
+              <h2>최근 체결내역</h2>
             </div>
           </div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Time</th>
-                  <th>Side</th>
-                  <th>Price</th>
-                  <th>Volume</th>
-                  <th>Profit</th>
+                  <th>시간</th>
+                  <th>구분</th>
+                  <th>가격</th>
+                  <th>수량</th>
+                  <th>손익</th>
                 </tr>
               </thead>
               <tbody id="tradeRows">
                 <tr>
-                  <td colspan="5" class="empty">No trades</td>
+                  <td colspan="5" class="empty">거래내역이 없습니다</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </article>
       </section>
+
+      <section class="grid lower">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">API 키</p>
+              <h2>업비트 API 키관리</h2>
+            </div>
+          </div>
+          <form id="apiKeyForm" class="form settings-form">
+            <label><span class="label">키 이름</span><input id="apiKeyName" placeholder="메인 계정" /></label>
+            <label><span class="label">액세스 키</span><input id="apiAccessKey" /></label>
+            <label><span class="label">시크릿 키</span><input id="apiSecretKey" type="password" /></label>
+            <button id="saveApiKeyButton" class="button primary wide" type="button">API 키 저장</button>
+          </form>
+          <div id="apiKeyList" class="key-list"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">리스크</p>
+              <h2>일일 제한</h2>
+            </div>
+          </div>
+          <div class="metrics compact">
+            <div>
+              <span class="label">당일 거래 횟수</span>
+              <strong id="todayTradeCount">-</strong>
+            </div>
+            <div>
+              <span class="label">최근 오류</span>
+              <strong id="lastError">-</strong>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="grid lower">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">수동 매도</p>
+              <h2>보유수량 강제 매도</h2>
+            </div>
+          </div>
+          <form id="manualSellForm" class="form settings-form">
+            <label><span class="label">매도가</span><input id="manualSellPrice" type="number" step="0.1" /></label>
+            <label><span class="label">매도수량</span><input id="manualSellVolume" type="number" step="0.000001" placeholder="비우면 전량" /></label>
+            <p class="hint wide">입력한 매도가로 현재 보유 중인 USDT를 즉시 가상 매도 처리합니다. 매도수량을 비우면 보유 전량을 매도합니다.</p>
+            <button id="manualSellButton" class="button primary wide" type="button">강제 매도</button>
+          </form>
+        </article>
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">주의</p>
+              <h2>수동 매도 기준</h2>
+            </div>
+          </div>
+          <p class="hint">현재 MVP에서는 Paper Trading 거래내역을 생성합니다. 실거래 모드의 업비트 주문 전송은 아직 연결하지 않았습니다.</p>
+        </article>
+      </section>
     </main>
 
-    <script src="/static/dashboard.js"></script>
+    <script src="/static/dashboard.js?v=9"></script>
   </body>
 </html>

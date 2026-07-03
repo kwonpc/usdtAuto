@@ -27,6 +27,11 @@ class Signal(str, Enum):
     HOLD = "HOLD"
 
 
+class StrategyType(str, Enum):
+    PREMIUM_REBALANCE = "premium_rebalance"
+    BASE_PRICE_GAP = "base_price_gap"
+
+
 @dataclass(frozen=True)
 class Ticker:
     market: str
@@ -44,5 +49,5 @@ class FxRate:
 @dataclass(frozen=True)
 class StrategyDecision:
     signal: Signal
-    premium_rate: float
+    premium_rate: float | None
     reason: str

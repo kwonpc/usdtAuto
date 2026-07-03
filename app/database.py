@@ -1,65 +1,59 @@
-import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterator
+
+from fastapi import Request
+from sqlalchemy import create_engine
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import Settings
 
 
-def _db_path(settings: Settings) -> Path:
-    if not settings.database_url.startswith("sqlite:///"):
-        raise ValueError("Only sqlite:/// database URLs are supported in this MVP")
-    return Path(settings.database_url.removeprefix("sqlite:///"))
+class Base(DeclarativeBase):
+    pass
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def utc_now_iso() -> str:
+    return utc_now().isoformat()
+
+
+def _ensure_sqlite_parent(database_url: str) -> None:
+    if not database_url.startswith("sqlite:///"):
+        return
+    path = Path(database_url.removeprefix("sqlite:///"))
+    path.parent.mkdir(parents=True, exist_ok=True)
 
 
 class Database:
     def __init__(self, settings: Settings):
-        self.path = _db_path(settings)
-
-    @contextmanager
-    def connect(self) -> Iterator[sqlite3.Connection]:
-        conn = sqlite3.connect(self.path)
-        conn.row_factory = sqlite3.Row
-        try:
-            yield conn
-            conn.commit()
-        finally:
-            conn.close()
+        _ensure_sqlite_parent(settings.database_url)
+        connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
+        self.engine = create_engine(settings.database_url, connect_args=connect_args, future=True)
+        self.session_factory = sessionmaker(self.engine, expire_on_commit=False, class_=Session)
 
     def init(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.connect() as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS price_snapshot (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    market TEXT NOT NULL,
-                    trade_price REAL NOT NULL,
-                    bid_price REAL NOT NULL,
-                    ask_price REAL NOT NULL,
-                    usd_krw_rate REAL NOT NULL,
-                    premium_rate REAL NOT NULL,
-                    created_at DATETIME NOT NULL
-                )
-                """
-            )
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS virtual_trade (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    side TEXT NOT NULL,
-                    price REAL NOT NULL,
-                    volume REAL NOT NULL,
-                    fee REAL NOT NULL,
-                    profit REAL NOT NULL,
-                    profit_rate REAL NOT NULL,
-                    total_asset_krw REAL NOT NULL,
-                    created_at DATETIME NOT NULL
-                )
-                """
-            )
+        from app import db_models  # noqa: F401
+
+        Base.metadata.create_all(self.engine)
+
+    @contextmanager
+    def session(self) -> Generator[Session, None, None]:
+        db = self.session_factory()
+        try:
+            yield db
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
 
 
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+def get_db(request: Request) -> Generator[Session, None, None]:
+    with request.app.state.database.session() as db:
+        yield db

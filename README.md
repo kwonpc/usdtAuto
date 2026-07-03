@@ -1,6 +1,21 @@
-# KRW-USDT 환율 괴리 기반 자동매매 봇 MVP
+# USDT Auto Trading Bot
 
-업비트 `KRW-USDT` 가격과 USD/KRW 환율의 괴리율을 계산하고, 기본값으로 Paper Trading만 수행하는 FastAPI 기반 MVP입니다.
+업비트 `KRW-USDT` 시장을 대상으로 사용자별 매매봇을 관리하는 FastAPI 기반 MVP입니다. 기본값은 Paper Trading이며, 실주문 실행은 아직 비활성화되어 있습니다.
+
+## 주요 기능
+
+- 가입 / 로그인
+- JWT Bearer 인증
+- 사용자별 기본 매매봇 생성
+- 사용자별 업비트 API 키 암호화 저장
+- 사용자별 매매 설정관리
+- 사용자별 거래내역 조회
+- 전략 선택
+  - `premium_rebalance`: 업비트 USDT 가격과 USD/KRW 환율 괴리율 기반
+  - `base_price_gap`: 기준가격과 기준차이가격 기반
+- SQLAlchemy 기반 DB 계층
+- SQLite 개발 실행, Oracle DB 전환 준비
+- Docker / Docker Compose 구성
 
 ## 실행
 
@@ -14,66 +29,213 @@ docker compose up -d
 http://localhost:8000/
 ```
 
-상태 API:
+## 로컬 개발 실행
 
 ```bash
-curl http://localhost:8000/status
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-봇은 기본 `STOPPED` 상태입니다. 시작하려면:
+## 인증 API 예시
+
+가입:
 
 ```bash
-curl -X POST http://localhost:8000/bot/start
+curl -X POST http://localhost:8000/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"login_id":"demo","password":"password1234"}'
 ```
 
-중지:
+로그인:
 
 ```bash
-curl -X POST http://localhost:8000/bot/stop
+curl -X POST http://localhost:8000/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"login_id":"demo","password":"password1234"}'
 ```
 
-최근 거래:
+보호 API 호출:
 
 ```bash
-curl http://localhost:8000/trades
+curl http://localhost:8000/status \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
-## 전략
+## 매매 설정
 
-괴리율은 아래 공식으로 계산합니다.
+대시보드의 매매 설정관리에서 변경하거나 아래 API를 사용합니다.
+
+```json
+{
+  "market": "KRW-USDT",
+  "trade_mode": "paper",
+  "strategy_type": "base_price_gap",
+  "base_price": 1500,
+  "price_gap": 3,
+  "max_order_amount": 10000000,
+  "manual_usd_krw_rate": 1370
+}
+```
+
+`base_price_gap` 전략:
+
+- 보유 USDT가 없고 `현재가 <= 기준가격 - 기준차이가격`이면 매수
+- 보유 USDT가 있고 `현재가 >= 평균매수가 + 기준차이가격`이면 매도
+
+`premium_rebalance` 전략:
 
 ```text
 premium_rate = (upbit_usdt_price / usd_krw_rate - 1) * 100
 ```
 
-- `premium_rate <= buy_premium_threshold`: USDT 저평가로 보고 매수
-- `premium_rate >= sell_premium_threshold`: USDT 고평가로 보고 매도
-- 그 외: 대기
+- `premium_rate <= buy_premium_threshold`: 매수
+- `premium_rate >= sell_premium_threshold`: 매도
 
-## 설정
+## 체결 수량 처리 정책
 
-`config.yml`에서 변경합니다.
+현재 Paper Trading은 주문이 전량 체결된 것으로 가정합니다. 실거래 모듈을 붙일 때는 주문금액 기준이 아니라 업비트에서 확인한 실제 체결수량 기준으로 포지션을 관리해야 합니다.
 
-```yaml
-trade_mode: paper
-fx_provider: manual
-manual_usd_krw_rate: 1370.0
-buy_premium_threshold: -0.3
-sell_premium_threshold: 0.3
-max_order_amount: 10000000
-daily_max_trade_amount: 50000000
-daily_max_loss_rate: -1.0
+- 매수 주문이 일부만 체결되면 `trades.volume`에는 실제 매수된 USDT 수량만 저장합니다.
+- 이후 매도는 최초 주문금액이 아니라 현재 보유 중인 USDT 수량만 대상으로 냅니다.
+- 매도 주문도 일부만 체결되면 체결된 수량만 `SELL` 거래로 저장하고, 남은 USDT는 계속 보유수량으로 유지합니다.
+- 남은 수량은 다음 매도 신호에서 다시 매도 대상이 됩니다.
+- 실거래 주문 상태는 `ORDER_PLACED`, `PARTIALLY_FILLED`, `FILLED`, `CANCELLED`, `FAILED` 같은 상태로 추적할 예정입니다.
+
+예시:
+
+```text
+1회 주문금액: 10,000,000원
+매수 주문 실제 체결: 6,000,000원 상당 USDT
+
+=> 보유수량은 6,000,000원 상당 USDT만 반영
+=> 이후 매도 신호 발생 시 10,000,000원어치가 아니라 보유 중인 USDT만 매도
+=> 매도도 50%만 체결되면 나머지 50% USDT는 계속 보유
 ```
-
-`trade_mode: live`는 MVP에서 의도적으로 비활성화되어 있습니다.
 
 ## DB
 
-SQLite 테이블:
+현재 기본 설정은 SQLite입니다.
 
-- `price_snapshot`: 시세, 환율, 괴리율 스냅샷
-- `virtual_trade`: 가상매매 체결 내역
+```yaml
+database_url: sqlite:///./data/trading_bot.db
+```
 
-## 주의
+Oracle Cloud Free Tier DB로 전환할 때는 `DATABASE_URL` 환경변수 또는 `config.yml`의 `database_url`을 SQLAlchemy Oracle URL로 지정합니다.
 
-이 프로젝트는 수익을 보장하지 않으며, MVP 단계에서는 실거래가 구현되어 있지 않습니다. 최소 14일 이상 Paper Trading 결과를 확인한 뒤 실거래 모듈을 별도 검증하는 것을 전제로 합니다.
+```text
+oracle+oracledb://USER:PASSWORD@HOST:1521/?service_name=SERVICE
+```
+
+주요 테이블:
+
+- `users`
+- `upbit_api_keys`
+- `trading_bots`
+- `bot_settings`
+- `price_snapshots`
+- `trades`
+
+### 테이블 컬럼
+
+#### `users`
+
+| 컬럼 | 타입 | 키 | 설명 |
+| --- | --- | --- | --- |
+| `id` | `Integer` | PK | 사용자 ID |
+| `login_id` | `String(100)` | Unique, Index | 로그인 아이디 |
+| `password_hash` | `String(255)` |  | 비밀번호 해시 |
+| `created_at` | `DateTime` |  | 생성 시각 |
+
+#### `upbit_api_keys`
+
+| 컬럼 | 타입 | 키 | 설명 |
+| --- | --- | --- | --- |
+| `id` | `Integer` | PK | API 키 ID |
+| `user_id` | `Integer` | FK, Index | `users.id` |
+| `name` | `String(100)` |  | 사용자가 지정한 키 이름 |
+| `access_key_encrypted` | `Text` |  | 암호화된 업비트 Access Key |
+| `secret_key_encrypted` | `Text` |  | 암호화된 업비트 Secret Key |
+| `is_active` | `Boolean` |  | 사용 여부 |
+| `created_at` | `DateTime` |  | 생성 시각 |
+
+#### `trading_bots`
+
+| 컬럼 | 타입 | 키 | 설명 |
+| --- | --- | --- | --- |
+| `id` | `Integer` | PK | 매매봇 ID |
+| `user_id` | `Integer` | FK, Index | `users.id` |
+| `api_key_id` | `Integer` | FK, Nullable | `upbit_api_keys.id` |
+| `name` | `String(100)` |  | 봇 이름 |
+| `market` | `String(30)` |  | 거래 마켓, 기본 `KRW-USDT` |
+| `trade_mode` | `String(20)` |  | `paper` 또는 `live` |
+| `strategy_type` | `String(50)` |  | `premium_rebalance` 또는 `base_price_gap` |
+| `bot_status` | `String(30)` |  | `STOPPED`, `RUNNING`, `PAUSED_BY_RISK`, `ERROR` |
+| `last_signal` | `String(20)` |  | 최근 신호, `BUY`, `SELL`, `HOLD` |
+| `last_signal_at` | `DateTime` | Nullable | 최근 신호 시각 |
+| `last_error` | `Text` | Nullable | 최근 오류 메시지 |
+| `created_at` | `DateTime` |  | 생성 시각 |
+
+#### `bot_settings`
+
+| 컬럼 | 타입 | 키 | 설명 |
+| --- | --- | --- | --- |
+| `id` | `Integer` | PK | 설정 ID |
+| `bot_id` | `Integer` | FK, Unique, Index | `trading_bots.id` |
+| `initial_balance` | `Float` |  | 가상매매 초기 KRW 잔고 |
+| `buy_premium_threshold` | `Float` |  | 환율괴리 전략 매수 기준 괴리율 |
+| `sell_premium_threshold` | `Float` |  | 환율괴리 전략 매도 기준 괴리율 |
+| `neutral_band` | `Float` |  | 중립 구간 |
+| `base_price` | `Float` | Nullable | 기준가격 전략의 기준가격 |
+| `price_gap` | `Float` |  | 기준차이가격 |
+| `round_trip_fee_rate` | `Float` |  | 왕복 수수료율 |
+| `max_order_amount` | `Float` |  | 1회 최대 주문금액 |
+| `daily_max_trade_amount` | `Float` |  | 일일 최대 거래금액 |
+| `daily_max_loss_rate` | `Float` |  | 일일 최대 손실률 |
+| `fx_provider` | `String(20)` |  | `manual` 또는 `api` |
+| `manual_usd_krw_rate` | `Float` |  | 수동 USD/KRW 환율 |
+| `fx_rate_max_stale_seconds` | `Integer` |  | 환율 데이터 최대 허용 지연시간 |
+| `updated_at` | `DateTime` |  | 수정 시각 |
+
+#### `price_snapshots`
+
+| 컬럼 | 타입 | 키 | 설명 |
+| --- | --- | --- | --- |
+| `id` | `Integer` | PK | 시세 스냅샷 ID |
+| `user_id` | `Integer` | FK, Index | `users.id` |
+| `bot_id` | `Integer` | FK, Index | `trading_bots.id` |
+| `market` | `String(30)` |  | 거래 마켓 |
+| `trade_price` | `Float` |  | 현재가 |
+| `bid_price` | `Float` |  | 최우선 매수호가 |
+| `ask_price` | `Float` |  | 최우선 매도호가 |
+| `usd_krw_rate` | `Float` | Nullable | USD/KRW 환율 |
+| `premium_rate` | `Float` | Nullable | 환율 괴리율 |
+| `created_at` | `DateTime` |  | 생성 시각 |
+
+#### `trades`
+
+| 컬럼 | 타입 | 키 | 설명 |
+| --- | --- | --- | --- |
+| `id` | `Integer` | PK | 거래 ID |
+| `user_id` | `Integer` | FK, Index | `users.id` |
+| `bot_id` | `Integer` | FK, Index | `trading_bots.id` |
+| `side` | `String(20)` |  | `BUY` 또는 `SELL` |
+| `price` | `Float` |  | 체결 가격 |
+| `volume` | `Float` |  | 체결 수량 |
+| `fee` | `Float` |  | 수수료 |
+| `profit` | `Float` |  | 실현 손익 |
+| `profit_rate` | `Float` |  | 실현 손익률 |
+| `total_asset_krw` | `Float` |  | 체결 후 총자산 평가액 |
+| `trade_mode` | `String(20)` |  | `paper` 또는 `live` |
+| `status` | `String(30)` |  | 거래 상태 |
+| `created_at` | `DateTime` |  | 생성 시각 |
+
+## 보안 메모
+
+- 운영 배포 전 `jwt_secret_key`와 `encryption_key`를 반드시 변경하세요.
+- 업비트 Secret Key는 암호화 저장되며 API 응답에는 노출하지 않습니다.
+- `trade_mode=live`는 현재 실주문 미구현 상태라 ERROR로 전환됩니다.
+
+## Oracle Cloud VM 배포 메모
+
+Micro VM에서는 앱을 가볍게 유지하는 것이 중요합니다. 우선은 단일 FastAPI 프로세스와 APScheduler로 운영할 수 있지만, 실거래 적용 전에는 웹 API와 매매 워커를 분리하는 구조를 권장합니다.

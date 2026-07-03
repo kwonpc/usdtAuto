@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
-from app.config import Settings
-from app.database import Database, utc_now_iso
-from app.models import Signal
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.db_models import BotSetting, Trade
+from app.models import Signal, TradeStatus
 
 
 @dataclass
@@ -14,54 +16,60 @@ class PaperPortfolio:
 
 
 class PaperTradeService:
-    def __init__(self, settings: Settings, database: Database):
-        self.settings = settings
-        self.database = database
-        self.portfolio = PaperPortfolio(krw_balance=settings.initial_balance, usdt_balance=0.0)
-        self._restore_from_trades()
+    def __init__(self, db: Session, user_id: int, bot_id: int, setting: BotSetting):
+        self.db = db
+        self.user_id = user_id
+        self.bot_id = bot_id
+        self.setting = setting
+        self.portfolio = self._restore_from_trades()
 
-    def _restore_from_trades(self) -> None:
-        with self.database.connect() as conn:
-            rows = conn.execute("SELECT * FROM virtual_trade ORDER BY id ASC").fetchall()
+    def _restore_from_trades(self) -> PaperPortfolio:
+        rows = self.db.scalars(
+            select(Trade).where(Trade.user_id == self.user_id, Trade.bot_id == self.bot_id).order_by(Trade.id.asc())
+        ).all()
 
-        portfolio = PaperPortfolio(krw_balance=self.settings.initial_balance, usdt_balance=0.0)
+        portfolio = PaperPortfolio(krw_balance=self.setting.initial_balance, usdt_balance=0.0)
         for row in rows:
-            side = row["side"]
-            price = float(row["price"])
-            volume = float(row["volume"])
-            fee = float(row["fee"])
-            if side == Signal.BUY.value:
-                cost = price * volume
+            if row.side == Signal.BUY.value:
+                cost = row.price * row.volume
                 previous_value = portfolio.avg_buy_price * portfolio.usdt_balance
-                portfolio.krw_balance -= cost + fee
-                portfolio.usdt_balance += volume
+                portfolio.krw_balance -= cost + row.fee
+                portfolio.usdt_balance += row.volume
                 portfolio.avg_buy_price = (previous_value + cost) / portfolio.usdt_balance
-            elif side == Signal.SELL.value:
-                proceeds = price * volume
-                portfolio.krw_balance += proceeds - fee
-                portfolio.usdt_balance -= volume
-                portfolio.realized_profit += float(row["profit"])
+            elif row.side == Signal.SELL.value:
+                proceeds = row.price * row.volume
+                portfolio.krw_balance += proceeds - row.fee
+                portfolio.usdt_balance -= row.volume
+                portfolio.realized_profit += row.profit
                 if portfolio.usdt_balance <= 1e-12:
                     portfolio.usdt_balance = 0.0
                     portfolio.avg_buy_price = 0.0
-        self.portfolio = portfolio
+        return portfolio
 
     @property
     def fee_rate_per_side(self) -> float:
-        return self.settings.round_trip_fee_rate / 2
+        return self.setting.round_trip_fee_rate / 2
 
     def total_asset_krw(self, mark_price: float) -> float:
         return self.portfolio.krw_balance + (self.portfolio.usdt_balance * mark_price)
 
-    def execute(self, signal: Signal, price: float, max_order_amount: float | None = None) -> dict | None:
+    def execute(self, signal: Signal, price: float, trade_mode: str, max_order_amount: float | None = None) -> Trade | None:
         if signal == Signal.BUY:
-            return self._buy(price, max_order_amount)
+            return self._buy(price, trade_mode, max_order_amount)
         if signal == Signal.SELL:
-            return self._sell(price, max_order_amount)
+            return self._sell(price, trade_mode, max_order_amount)
         return None
 
-    def _buy(self, price: float, max_order_amount: float | None) -> dict | None:
-        order_limit = self.settings.max_order_amount if max_order_amount is None else max_order_amount
+    def manual_sell(self, price: float, trade_mode: str, volume: float | None = None) -> Trade | None:
+        if self.portfolio.usdt_balance <= 0:
+            return None
+        target_volume = self.portfolio.usdt_balance if volume is None else min(volume, self.portfolio.usdt_balance)
+        if target_volume <= 0:
+            return None
+        return self._sell_volume(price, target_volume, trade_mode)
+
+    def _buy(self, price: float, trade_mode: str, max_order_amount: float | None) -> Trade | None:
+        order_limit = self.setting.max_order_amount if max_order_amount is None else max_order_amount
         order_amount = min(order_limit, self.portfolio.krw_balance)
         if order_amount <= 0:
             return None
@@ -76,16 +84,20 @@ class PaperTradeService:
         self.portfolio.krw_balance -= order_amount
         self.portfolio.usdt_balance += volume
         self.portfolio.avg_buy_price = (previous_value + spendable) / self.portfolio.usdt_balance
-        total_asset = self.total_asset_krw(price)
-        return self._insert_trade(Signal.BUY, price, volume, fee, 0.0, 0.0, total_asset)
+        return self._insert_trade(Signal.BUY, price, volume, fee, 0.0, 0.0, self.total_asset_krw(price), trade_mode)
 
-    def _sell(self, price: float, max_order_amount: float | None) -> dict | None:
+    def _sell(self, price: float, trade_mode: str, max_order_amount: float | None) -> Trade | None:
         if self.portfolio.usdt_balance <= 0:
             return None
 
-        order_limit = self.settings.max_order_amount if max_order_amount is None else max_order_amount
+        order_limit = self.setting.max_order_amount if max_order_amount is None else max_order_amount
         max_volume_by_amount = order_limit / price
         volume = min(self.portfolio.usdt_balance, max_volume_by_amount)
+        return self._sell_volume(price, volume, trade_mode)
+
+    def _sell_volume(self, price: float, volume: float, trade_mode: str) -> Trade | None:
+        if volume <= 0:
+            return None
         gross = price * volume
         fee = gross * self.fee_rate_per_side
         proceeds = gross - fee
@@ -100,8 +112,7 @@ class PaperTradeService:
             self.portfolio.usdt_balance = 0.0
             self.portfolio.avg_buy_price = 0.0
 
-        total_asset = self.total_asset_krw(price)
-        return self._insert_trade(Signal.SELL, price, volume, fee, profit, profit_rate, total_asset)
+        return self._insert_trade(Signal.SELL, price, volume, fee, profit, profit_rate, self.total_asset_krw(price), trade_mode)
 
     def _insert_trade(
         self,
@@ -112,26 +123,21 @@ class PaperTradeService:
         profit: float,
         profit_rate: float,
         total_asset_krw: float,
-    ) -> dict:
-        created_at = utc_now_iso()
-        with self.database.connect() as conn:
-            cursor = conn.execute(
-                """
-                INSERT INTO virtual_trade
-                    (side, price, volume, fee, profit, profit_rate, total_asset_krw, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (side.value, price, volume, fee, profit, profit_rate, total_asset_krw, created_at),
-            )
-            trade_id = cursor.lastrowid
-        return {
-            "id": trade_id,
-            "side": side.value,
-            "price": price,
-            "volume": volume,
-            "fee": fee,
-            "profit": profit,
-            "profit_rate": profit_rate,
-            "total_asset_krw": total_asset_krw,
-            "created_at": created_at,
-        }
+        trade_mode: str,
+    ) -> Trade:
+        trade = Trade(
+            user_id=self.user_id,
+            bot_id=self.bot_id,
+            side=side.value,
+            price=price,
+            volume=volume,
+            fee=fee,
+            profit=profit,
+            profit_rate=profit_rate,
+            total_asset_krw=total_asset_krw,
+            trade_mode=trade_mode,
+            status=TradeStatus.FILLED.value,
+        )
+        self.db.add(trade)
+        self.db.flush()
+        return trade
