@@ -18,5 +18,7 @@ daily_max_loss_rate: -1.0
 paper_mode_days: 14
 
 database_url: sqlite:///./data/trading_bot.db
+oracle_wallet_dir:
+oracle_wallet_password:
 jwt_secret_key: change-this-secret-in-production
 encryption_key:

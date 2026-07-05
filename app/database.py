@@ -29,10 +29,29 @@ def _ensure_sqlite_parent(database_url: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
 
+def _oracle_connect_args(settings: Settings) -> dict[str, str]:
+    if not settings.oracle_wallet_dir:
+        return {}
+
+    wallet_dir = str(Path(settings.oracle_wallet_dir).expanduser())
+    connect_args = {
+        "config_dir": wallet_dir,
+        "wallet_location": wallet_dir,
+    }
+    if settings.oracle_wallet_password:
+        connect_args["wallet_password"] = settings.oracle_wallet_password
+    return connect_args
+
+
 class Database:
     def __init__(self, settings: Settings):
         _ensure_sqlite_parent(settings.database_url)
-        connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
+        if settings.database_url.startswith("sqlite"):
+            connect_args = {"check_same_thread": False}
+        elif settings.database_url.startswith("oracle"):
+            connect_args = _oracle_connect_args(settings)
+        else:
+            connect_args = {}
         self.engine = create_engine(settings.database_url, connect_args=connect_args, future=True)
         self.session_factory = sessionmaker(self.engine, expire_on_commit=False, class_=Session)
 

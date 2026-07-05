@@ -28,6 +28,8 @@ class Settings(BaseModel):
     paper_mode_days: int = 14
 
     database_url: str = "sqlite:///./data/trading_bot.db"
+    oracle_wallet_dir: str | None = None
+    oracle_wallet_password: str | None = None
     upbit_base_url: str = "https://api.upbit.com/v1"
     jwt_secret_key: str = "change-this-secret-in-production"
     jwt_algorithm: str = "HS256"
@@ -43,5 +45,12 @@ def get_settings() -> Settings:
 
     with config_path.open("r", encoding="utf-8") as f:
         raw = yaml.safe_load(f) or {}
-    raw.update({k.lower(): v for k, v in os.environ.items() if k in {"DATABASE_URL", "JWT_SECRET_KEY", "ENCRYPTION_KEY"}})
+    env_keys = {
+        "DATABASE_URL",
+        "ORACLE_WALLET_DIR",
+        "ORACLE_WALLET_PASSWORD",
+        "JWT_SECRET_KEY",
+        "ENCRYPTION_KEY",
+    }
+    raw.update({k.lower(): v for k, v in os.environ.items() if k in env_keys})
     return Settings(**raw)
