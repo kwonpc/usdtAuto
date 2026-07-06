@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 
 class Settings(BaseModel):
+    exchange: Literal["upbit", "bithumb"] = "upbit"
     market: str = "KRW-USDT"
     trade_mode: Literal["paper", "live"] = "paper"
     initial_balance: float = 100_000_000
@@ -31,6 +32,7 @@ class Settings(BaseModel):
     oracle_wallet_dir: str | None = None
     oracle_wallet_password: str | None = None
     upbit_base_url: str = "https://api.upbit.com/v1"
+    bithumb_base_url: str = "https://api.bithumb.com"
     jwt_secret_key: str = "change-this-secret-in-production"
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 60 * 24
@@ -46,11 +48,14 @@ def get_settings() -> Settings:
     with config_path.open("r", encoding="utf-8") as f:
         raw = yaml.safe_load(f) or {}
     env_keys = {
+        "EXCHANGE",
         "DATABASE_URL",
         "ORACLE_WALLET_DIR",
         "ORACLE_WALLET_PASSWORD",
         "JWT_SECRET_KEY",
         "ENCRYPTION_KEY",
+        "UPBIT_BASE_URL",
+        "BITHUMB_BASE_URL",
     }
     raw.update({k.lower(): v for k, v in os.environ.items() if k in env_keys})
     return Settings(**raw)

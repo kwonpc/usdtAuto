@@ -92,7 +92,7 @@
           </div>
           <div class="split">
             <div>
-              <span class="label">업비트 USDT</span>
+              <span id="exchangePriceLabel" class="label">거래소 USDT</span>
               <strong id="upbitUsdtPrice">-</strong>
             </div>
             <div>
@@ -139,6 +139,7 @@
             </div>
           </div>
           <form id="settingsForm" class="form settings-form">
+            <label><span class="label">거래소</span><select id="settingExchange"><option value="upbit">업비트</option><option value="bithumb">빗썸</option></select></label>
             <label><span class="label">마켓</span><input id="settingMarket" value="KRW-USDT" /></label>
             <label><span class="label">거래 모드</span><select id="settingTradeMode"><option value="paper">가상매매</option><option value="live">실거래</option></select></label>
             <label><span class="label">매매 전략</span><select id="settingStrategy"><option value="premium_rebalance">환율 괴리</option><option value="base_price_gap">기준가격</option></select></label>
@@ -166,6 +167,7 @@
               <thead>
                 <tr>
                   <th>시간</th>
+                  <th>거래소</th>
                   <th>구분</th>
                   <th>가격</th>
                   <th>수량</th>
@@ -174,7 +176,7 @@
               </thead>
               <tbody id="tradeRows">
                 <tr>
-                  <td colspan="5" class="empty">거래내역이 없습니다</td>
+                  <td colspan="6" class="empty">거래내역이 없습니다</td>
                 </tr>
               </tbody>
             </table>
@@ -187,10 +189,11 @@
           <div class="panel-head">
             <div>
               <p class="eyebrow">API 키</p>
-              <h2>업비트 API 키관리</h2>
+              <h2>거래소 API 키관리</h2>
             </div>
           </div>
           <form id="apiKeyForm" class="form settings-form">
+            <label><span class="label">거래소</span><select id="apiKeyExchange"><option value="upbit">업비트</option><option value="bithumb">빗썸</option></select></label>
             <label><span class="label">키 이름</span><input id="apiKeyName" placeholder="메인 계정" /></label>
             <label><span class="label">액세스 키</span><input id="apiAccessKey" /></label>
             <label><span class="label">시크릿 키</span><input id="apiSecretKey" type="password" /></label>
@@ -240,11 +243,11 @@
               <h2>수동 매도 기준</h2>
             </div>
           </div>
-          <p class="hint">현재 MVP에서는 Paper Trading 거래내역을 생성합니다. 실거래 모드의 업비트 주문 전송은 아직 연결하지 않았습니다.</p>
+          <p class="hint">현재 MVP에서는 Paper Trading 거래내역을 생성합니다. 실거래 모드의 거래소 주문 전송은 아직 연결하지 않았습니다.</p>
         </article>
       </section>
     </main>
 
-    <script src="/static/dashboard.js?v=9"></script>
+    <script src="/static/dashboard.js?v=10"></script>
   </body>
 </html>

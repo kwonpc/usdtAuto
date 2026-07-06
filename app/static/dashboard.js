@@ -38,6 +38,7 @@ const ids = [
   "premiumRate",
   "premiumState",
   "premiumMarker",
+  "exchangePriceLabel",
   "upbitUsdtPrice",
   "usdKrwRate",
   "totalAssetKrw",
@@ -50,6 +51,7 @@ const ids = [
   "tradeRows",
   "startButton",
   "stopButton",
+  "settingExchange",
   "settingMarket",
   "settingsForm",
   "settingTradeMode",
@@ -67,6 +69,7 @@ const ids = [
   "manualSellPrice",
   "manualSellVolume",
   "manualSellButton",
+  "apiKeyExchange",
   "apiKeyName",
   "apiAccessKey",
   "apiSecretKey",
@@ -77,6 +80,7 @@ const ids = [
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 let settingsDirty = false;
 let toastTimer = null;
+let latestApiKeys = [];
 
 function isEditingSettings() {
   return settingsDirty || el.settingsForm.contains(document.activeElement);
@@ -209,6 +213,10 @@ function signalLabel(value) {
   return labels[value] ?? value ?? "-";
 }
 
+function exchangeLabel(value) {
+  return { upbit: "업비트", bithumb: "빗썸" }[value] ?? value ?? "-";
+}
+
 function updateStatusClass(status) {
   el.botStatus.className = "status-pill";
   if (status === "RUNNING") el.botStatus.classList.add("running");
@@ -240,7 +248,8 @@ function renderStatus(data) {
   const clamped = Math.max(-1, Math.min(1, Number(data.premiumRate ?? 0)));
   el.premiumMarker.style.left = `${((clamped + 1) / 2) * 100}%`;
 
-  el.upbitUsdtPrice.textContent = krw(data.upbitUsdtPrice);
+  el.exchangePriceLabel.textContent = `${exchangeLabel(data.exchange)} USDT`;
+  el.upbitUsdtPrice.textContent = krw(data.exchangeUsdtPrice ?? data.upbitUsdtPrice);
   el.usdKrwRate.textContent = krw(data.usdKrwRate);
   el.totalAssetKrw.textContent = krw(data.totalAssetKrw);
   el.krwBalance.textContent = krw(data.krwBalance);
@@ -255,7 +264,7 @@ function renderStatus(data) {
 
 function renderTrades(trades) {
   if (!Array.isArray(trades) || trades.length === 0) {
-    el.tradeRows.innerHTML = '<tr><td colspan="5" class="empty">거래내역이 없습니다</td></tr>';
+    el.tradeRows.innerHTML = '<tr><td colspan="6" class="empty">거래내역이 없습니다</td></tr>';
     return;
   }
   el.tradeRows.innerHTML = trades
@@ -265,6 +274,7 @@ function renderTrades(trades) {
       return `
         <tr>
           <td>${shortDate(trade.created_at)}</td>
+          <td>${exchangeLabel(trade.exchange)}</td>
           <td>${signalLabel(trade.side)}</td>
           <td>${krw(trade.price)}</td>
           <td>${usdt(trade.volume)}</td>
@@ -277,6 +287,7 @@ function renderTrades(trades) {
 
 function renderSettings(settings) {
   if (isEditingSettings()) return;
+  el.settingExchange.value = settings.exchange ?? "upbit";
   el.settingMarket.value = settings.market ?? "KRW-USDT";
   el.settingTradeMode.value = settings.trade_mode ?? "paper";
   el.settingStrategy.value = settings.strategy_type ?? "premium_rebalance";
@@ -288,6 +299,7 @@ function renderSettings(settings) {
   el.settingMaxOrder.value = settings.max_order_amount ?? 10000000;
   el.settingManualFx.value = settings.manual_usd_krw_rate ?? 1370;
   updateStrategyFields();
+  renderApiKeys(latestApiKeys);
   renderStrategyHint();
 }
 
@@ -321,18 +333,26 @@ function renderStrategyHint() {
 }
 
 function renderApiKeys(keys) {
+  latestApiKeys = keys;
+  const selectedExchange = el.settingExchange.value || "upbit";
+  const selectedKey = el.settingApiKey.value;
   el.settingApiKey.innerHTML = '<option value="">선택 안 함</option>';
   el.apiKeyList.innerHTML = "";
   for (const key of keys) {
-    const option = document.createElement("option");
-    option.value = key.id;
-    option.textContent = key.name;
-    el.settingApiKey.appendChild(option);
+    if (key.exchange === selectedExchange) {
+      const option = document.createElement("option");
+      option.value = key.id;
+      option.textContent = `${exchangeLabel(key.exchange)} - ${key.name}`;
+      el.settingApiKey.appendChild(option);
+    }
 
     const item = document.createElement("div");
     item.className = "key-item";
-    item.innerHTML = `<strong>${key.name}</strong><span>${key.is_active ? "사용 중" : "중지"}</span>`;
+    item.innerHTML = `<strong>${exchangeLabel(key.exchange)} - ${key.name}</strong><span>${key.is_active ? "사용 중" : "중지"}</span>`;
     el.apiKeyList.appendChild(item);
+  }
+  if ([...el.settingApiKey.options].some((option) => option.value === selectedKey)) {
+    el.settingApiKey.value = selectedKey;
   }
   if (keys.length === 0) el.apiKeyList.innerHTML = '<p class="message">저장된 API 키가 없습니다.</p>';
 }
@@ -370,6 +390,7 @@ async function command(path) {
 
 async function saveSettings() {
   const payload = {
+    exchange: el.settingExchange.value,
     market: el.settingMarket.value,
     trade_mode: el.settingTradeMode.value,
     strategy_type: el.settingStrategy.value,
@@ -389,6 +410,7 @@ async function saveSettings() {
 
 async function saveApiKey() {
   const payload = {
+    exchange: el.apiKeyExchange.value,
     name: el.apiKeyName.value.trim(),
     access_key: el.apiAccessKey.value.trim(),
     secret_key: el.apiSecretKey.value.trim(),
@@ -447,11 +469,13 @@ el.manualSellButton.addEventListener("click", () =>
 el.settingsForm.addEventListener("input", () => {
   settingsDirty = true;
   updateStrategyFields();
+  renderApiKeys(latestApiKeys);
   renderStrategyHint();
 });
 el.settingsForm.addEventListener("change", () => {
   settingsDirty = true;
   updateStrategyFields();
+  renderApiKeys(latestApiKeys);
   renderStrategyHint();
 });
 

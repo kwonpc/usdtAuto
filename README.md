@@ -1,17 +1,17 @@
 # USDT Auto Trading Bot
 
-업비트 `KRW-USDT` 시장을 대상으로 사용자별 매매봇을 관리하는 FastAPI 기반 MVP입니다. 기본값은 Paper Trading이며, 실주문 실행은 아직 비활성화되어 있습니다.
+업비트/빗썸 `KRW-USDT` 시장을 대상으로 사용자별 매매봇을 관리하는 FastAPI 기반 MVP입니다. 기본값은 Paper Trading이며, 실주문 실행은 아직 비활성화되어 있습니다.
 
 ## 주요 기능
 
 - 가입 / 로그인
 - JWT Bearer 인증
 - 사용자별 기본 매매봇 생성
-- 사용자별 업비트 API 키 암호화 저장
+- 사용자별 거래소 API 키 암호화 저장
 - 사용자별 매매 설정관리
 - 사용자별 거래내역 조회
 - 전략 선택
-  - `premium_rebalance`: 업비트 USDT 가격과 USD/KRW 환율 괴리율 기반
+  - `premium_rebalance`: 거래소 USDT 가격과 USD/KRW 환율 괴리율 기반
   - `base_price_gap`: 기준가격과 기준차이가격 기반
 - SQLAlchemy 기반 DB 계층
 - SQLite 개발 실행, Oracle DB 전환 준비
@@ -68,6 +68,7 @@ curl http://localhost:8000/status \
 
 ```json
 {
+  "exchange": "upbit",
   "market": "KRW-USDT",
   "trade_mode": "paper",
   "strategy_type": "base_price_gap",
@@ -86,7 +87,7 @@ curl http://localhost:8000/status \
 `premium_rebalance` 전략:
 
 ```text
-premium_rate = (upbit_usdt_price / usd_krw_rate - 1) * 100
+premium_rate = (exchange_usdt_price / usd_krw_rate - 1) * 100
 ```
 
 - `premium_rate <= buy_premium_threshold`: 매수
@@ -94,7 +95,7 @@ premium_rate = (upbit_usdt_price / usd_krw_rate - 1) * 100
 
 ## 체결 수량 처리 정책
 
-현재 Paper Trading은 주문이 전량 체결된 것으로 가정합니다. 실거래 모듈을 붙일 때는 주문금액 기준이 아니라 업비트에서 확인한 실제 체결수량 기준으로 포지션을 관리해야 합니다.
+현재 Paper Trading은 주문이 전량 체결된 것으로 가정합니다. 실거래 모듈을 붙일 때는 주문금액 기준이 아니라 거래소에서 확인한 실제 체결수량 기준으로 포지션을 관리해야 합니다.
 
 - 매수 주문이 일부만 체결되면 `trades.volume`에는 실제 매수된 USDT 수량만 저장합니다.
 - 이후 매도는 최초 주문금액이 아니라 현재 보유 중인 USDT 수량만 대상으로 냅니다.
@@ -112,6 +113,17 @@ premium_rate = (upbit_usdt_price / usd_krw_rate - 1) * 100
 => 이후 매도 신호 발생 시 10,000,000원어치가 아니라 보유 중인 USDT만 매도
 => 매도도 50%만 체결되면 나머지 50% USDT는 계속 보유
 ```
+
+## 봇 오류 처리 정책
+
+RUNNING 상태의 봇은 주기적으로 시세/환율 조회, 전략 판단, 가상 체결을 수행합니다.
+
+- 거래소 시세 API 실패, 환율 API 실패, 외부 네트워크 timeout 같은 일시 실패는 `ERROR`로 멈추지 않습니다.
+- 일시 실패는 `last_error`에 기록하고 봇 상태는 `RUNNING`으로 유지하여 다음 tick에서 재시도합니다.
+- DB 저장 실패, 계산 로직 예외, 예상하지 못한 내부 오류는 `ERROR`로 전환합니다.
+- 일일 거래금액 초과나 일일 손실률 초과는 `PAUSED_BY_RISK`로 전환합니다.
+
+실거래 주문 실행은 아직 구현되어 있지 않습니다. `trade_mode=live`로 시작하면 봇은 `ERROR`가 되고 주문은 전송하지 않습니다.
 
 ## DB
 
@@ -136,6 +148,8 @@ oracle+oracledb://USER:PASSWORD@HOST:1521/?service_name=SERVICE
 - `price_snapshots`
 - `trades`
 
+기존 Oracle DB에 빗썸/거래소 구분 컬럼만 추가하려면 `oracle_migration_add_bithumb_exchange.sql`을 적용합니다.
+
 ### 테이블 컬럼
 
 #### `users`
@@ -153,9 +167,10 @@ oracle+oracledb://USER:PASSWORD@HOST:1521/?service_name=SERVICE
 | --- | --- | --- | --- |
 | `id` | `Integer` | PK | API 키 ID |
 | `user_id` | `Integer` | FK, Index | `users.id` |
+| `exchange` | `String(20)` | Index | `upbit` 또는 `bithumb` |
 | `name` | `String(100)` |  | 사용자가 지정한 키 이름 |
-| `access_key_encrypted` | `Text` |  | 암호화된 업비트 Access Key |
-| `secret_key_encrypted` | `Text` |  | 암호화된 업비트 Secret Key |
+| `access_key_encrypted` | `Text` |  | 암호화된 거래소 Access Key |
+| `secret_key_encrypted` | `Text` |  | 암호화된 거래소 Secret Key |
 | `is_active` | `Boolean` |  | 사용 여부 |
 | `created_at` | `DateTime` |  | 생성 시각 |
 
@@ -167,6 +182,7 @@ oracle+oracledb://USER:PASSWORD@HOST:1521/?service_name=SERVICE
 | `user_id` | `Integer` | FK, Index | `users.id` |
 | `api_key_id` | `Integer` | FK, Nullable | `upbit_api_keys.id` |
 | `name` | `String(100)` |  | 봇 이름 |
+| `exchange` | `String(20)` | Index | 거래소, `upbit` 또는 `bithumb` |
 | `market` | `String(30)` |  | 거래 마켓, 기본 `KRW-USDT` |
 | `trade_mode` | `String(20)` |  | `paper` 또는 `live` |
 | `strategy_type` | `String(50)` |  | `premium_rebalance` 또는 `base_price_gap` |
@@ -204,6 +220,7 @@ oracle+oracledb://USER:PASSWORD@HOST:1521/?service_name=SERVICE
 | `id` | `Integer` | PK | 시세 스냅샷 ID |
 | `user_id` | `Integer` | FK, Index | `users.id` |
 | `bot_id` | `Integer` | FK, Index | `trading_bots.id` |
+| `exchange` | `String(20)` | Index | 거래소, `upbit` 또는 `bithumb` |
 | `market` | `String(30)` |  | 거래 마켓 |
 | `trade_price` | `Float` |  | 현재가 |
 | `bid_price` | `Float` |  | 최우선 매수호가 |
@@ -219,6 +236,7 @@ oracle+oracledb://USER:PASSWORD@HOST:1521/?service_name=SERVICE
 | `id` | `Integer` | PK | 거래 ID |
 | `user_id` | `Integer` | FK, Index | `users.id` |
 | `bot_id` | `Integer` | FK, Index | `trading_bots.id` |
+| `exchange` | `String(20)` | Index | 거래소, `upbit` 또는 `bithumb` |
 | `side` | `String(20)` |  | `BUY` 또는 `SELL` |
 | `price` | `Float` |  | 체결 가격 |
 | `volume` | `Float` |  | 체결 수량 |
@@ -233,7 +251,7 @@ oracle+oracledb://USER:PASSWORD@HOST:1521/?service_name=SERVICE
 ## 보안 메모
 
 - 운영 배포 전 `jwt_secret_key`와 `encryption_key`를 반드시 변경하세요.
-- 업비트 Secret Key는 암호화 저장되며 API 응답에는 노출하지 않습니다.
+- 거래소 Secret Key는 암호화 저장되며 API 응답에는 노출하지 않습니다.
 - `trade_mode=live`는 현재 실주문 미구현 상태라 ERROR로 전환됩니다.
 
 ## Oracle Cloud VM 배포 메모

@@ -25,6 +25,7 @@ class UserResponse(BaseModel):
 
 
 class ApiKeyCreateRequest(BaseModel):
+    exchange: Literal["upbit", "bithumb"] = "upbit"
     name: str = Field(min_length=1, max_length=100)
     access_key: str = Field(min_length=1)
     secret_key: str = Field(min_length=1)
@@ -38,6 +39,7 @@ class ApiKeyResponse(BaseModel):
 
 
 class BotSettingsRequest(BaseModel):
+    exchange: Literal["upbit", "bithumb"] = "upbit"
     market: str = "KRW-USDT"
     trade_mode: Literal["paper", "live"] = "paper"
     strategy_type: Literal["premium_rebalance", "base_price_gap"] = "premium_rebalance"
@@ -64,6 +66,7 @@ class ManualSellRequest(BaseModel):
 class BotResponse(BaseModel):
     id: int
     name: str
+    exchange: str
     market: str
     trade_mode: str
     strategy_type: str
@@ -72,8 +75,10 @@ class BotResponse(BaseModel):
 
 class StatusResponse(BaseModel):
     botStatus: str
+    exchange: str
     tradeMode: str
     strategyType: str
+    exchangeUsdtPrice: float
     upbitUsdtPrice: float
     usdKrwRate: float | None
     premiumRate: float | None

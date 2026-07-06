@@ -1,3 +1,4 @@
+exchange: upbit
 market: KRW-USDT
 trade_mode: paper
 initial_balance: 100000000
@@ -22,3 +23,5 @@ oracle_wallet_dir:
 oracle_wallet_password:
 jwt_secret_key: change-this-secret-in-production
 encryption_key:
+upbit_base_url: https://api.upbit.com/v1
+bithumb_base_url: https://api.bithumb.com

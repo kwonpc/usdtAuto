@@ -16,11 +16,12 @@ class PaperPortfolio:
 
 
 class PaperTradeService:
-    def __init__(self, db: Session, user_id: int, bot_id: int, setting: BotSetting):
+    def __init__(self, db: Session, user_id: int, bot_id: int, setting: BotSetting, exchange: str = "upbit"):
         self.db = db
         self.user_id = user_id
         self.bot_id = bot_id
         self.setting = setting
+        self.exchange = exchange
         self.portfolio = self._restore_from_trades()
 
     def _restore_from_trades(self) -> PaperPortfolio:
@@ -128,6 +129,7 @@ class PaperTradeService:
         trade = Trade(
             user_id=self.user_id,
             bot_id=self.bot_id,
+            exchange=self.exchange,
             side=side.value,
             price=price,
             volume=volume,

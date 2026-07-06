@@ -57,6 +57,7 @@ def trades(request: Request, user: CurrentUser, db: DbSession, limit: int = Quer
         {
             "id": trade.id,
             "bot_id": trade.bot_id,
+            "exchange": trade.exchange,
             "side": trade.side,
             "price": trade.price,
             "volume": trade.volume,
@@ -92,6 +93,7 @@ def manual_sell(request: Request, payload: ManualSellRequest, user: CurrentUser,
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return {
         "id": trade.id,
+        "exchange": trade.exchange,
         "side": trade.side,
         "price": trade.price,
         "volume": trade.volume,
@@ -109,6 +111,7 @@ def get_bot_settings(request: Request, user: CurrentUser, db: DbSession):
     setting = bot.settings
     return {
         "botId": bot.id,
+        "exchange": bot.exchange,
         "market": bot.market,
         "trade_mode": bot.trade_mode,
         "strategy_type": bot.strategy_type,
@@ -145,6 +148,7 @@ def list_api_keys(user: CurrentUser, db: DbSession):
     return [
         {
             "id": key.id,
+            "exchange": key.exchange,
             "name": key.name,
             "is_active": key.is_active,
             "created_at": key.created_at.isoformat(),
@@ -157,6 +161,7 @@ def list_api_keys(user: CurrentUser, db: DbSession):
 def create_api_key(request: Request, payload: ApiKeyCreateRequest, user: CurrentUser, db: DbSession):
     key = UpbitApiKey(
         user_id=user.id,
+        exchange=payload.exchange,
         name=payload.name,
         access_key_encrypted=encrypt_secret(request.app.state.settings, payload.access_key),
         secret_key_encrypted=encrypt_secret(request.app.state.settings, payload.secret_key),
