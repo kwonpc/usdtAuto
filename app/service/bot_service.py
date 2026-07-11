@@ -55,6 +55,7 @@ class BotManager:
             max_order_amount=self.settings.max_order_amount,
             daily_max_trade_amount=self.settings.daily_max_trade_amount,
             daily_max_loss_rate=self.settings.daily_max_loss_rate,
+            base_loss_cut_price=self.settings.base_loss_cut_price,
             fx_provider=self.settings.fx_provider,
             manual_usd_krw_rate=self.settings.manual_usd_krw_rate,
             fx_rate_max_stale_seconds=self.settings.fx_rate_max_stale_seconds,
@@ -99,6 +100,7 @@ class BotManager:
         setting.max_order_amount = payload.max_order_amount
         setting.daily_max_trade_amount = payload.daily_max_trade_amount
         setting.daily_max_loss_rate = payload.daily_max_loss_rate
+        setting.base_loss_cut_price = payload.base_loss_cut_price
         setting.fx_provider = payload.fx_provider
         setting.manual_usd_krw_rate = payload.manual_usd_krw_rate
         setting.fx_rate_max_stale_seconds = payload.fx_rate_max_stale_seconds
@@ -184,8 +186,18 @@ class BotManager:
             )
         )
 
-        signal = self._apply_risk_controls(db, bot, setting, paper_trader, decision.signal, ticker.trade_price)
-        if signal in (Signal.BUY, Signal.SELL):
+        signal, force_sell, risk_message = self._apply_risk_controls(
+            db, bot, setting, paper_trader, decision.signal, ticker.trade_price
+        )
+        if force_sell:
+            trade = paper_trader.manual_sell(ticker.bid_price, trade_mode=bot.trade_mode)
+            if trade is not None:
+                bot.last_signal = Signal.SELL.value
+                bot.last_signal_at = trade.created_at
+            else:
+                bot.last_signal = Signal.HOLD.value
+                bot.last_signal_at = utc_now()
+        elif signal in (Signal.BUY, Signal.SELL):
             remaining_trade_amount = setting.daily_max_trade_amount - self.today_trade_amount(db, bot.user_id, bot.id)
             trade = paper_trader.execute(
                 signal,
@@ -200,7 +212,7 @@ class BotManager:
             bot.last_signal = decision.signal.value
             bot.last_signal_at = utc_now()
 
-        bot.last_error = None
+        bot.last_error = risk_message
         db.flush()
 
     async def _get_usd_krw_rate(self, setting: BotSetting) -> float | None:
@@ -238,22 +250,35 @@ class BotManager:
         paper_trader: PaperTradeService,
         signal: Signal,
         mark_price: float,
-    ) -> Signal:
-        if signal == Signal.HOLD:
-            return signal
-
-        daily_amount = self.today_trade_amount(db, bot.user_id, bot.id)
-        if daily_amount >= setting.daily_max_trade_amount:
+    ) -> tuple[Signal, bool, str | None]:
+        if (
+            setting.base_loss_cut_price is not None
+            and paper_trader.portfolio.usdt_balance > 0
+            and mark_price <= setting.base_loss_cut_price
+        ):
             bot.bot_status = BotStatus.PAUSED_BY_RISK.value
-            return Signal.HOLD
+            return (
+                Signal.SELL,
+                True,
+                f"기준가 로스컷 발동: 현재가 {mark_price:,.0f} <= 로스컷 기준가 {setting.base_loss_cut_price:,.0f}",
+            )
 
         total_asset = paper_trader.total_asset_krw(mark_price)
         loss_rate = ((total_asset / setting.initial_balance) - 1) * 100
         if loss_rate <= setting.daily_max_loss_rate:
             bot.bot_status = BotStatus.PAUSED_BY_RISK.value
-            return Signal.HOLD
+            return (
+                Signal.HOLD,
+                False,
+                f"하루 손실 제한 발동: 손실률 {loss_rate:.2f}% <= 제한 {setting.daily_max_loss_rate:.2f}%",
+            )
 
-        return signal
+        daily_amount = self.today_trade_amount(db, bot.user_id, bot.id)
+        if daily_amount >= setting.daily_max_trade_amount:
+            bot.bot_status = BotStatus.PAUSED_BY_RISK.value
+            return Signal.HOLD, False, "일일 거래금액 제한에 도달했습니다."
+
+        return signal, False, None
 
     def latest_snapshot(self, db: Session, user_id: int, bot_id: int) -> PriceSnapshot | None:
         return db.scalar(

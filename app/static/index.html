@@ -48,7 +48,15 @@
 
       <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
-      <section class="status-band">
+      <nav class="view-tabs" aria-label="대시보드 메뉴">
+        <button class="view-tab active" type="button" data-view-target="overview">현황</button>
+        <button class="view-tab" type="button" data-view-target="settings">설정</button>
+        <button class="view-tab" type="button" data-view-target="trades">거래내역</button>
+        <button class="view-tab" type="button" data-view-target="keys">API/리스크</button>
+        <button class="view-tab" type="button" data-view-target="manual">수동매도</button>
+      </nav>
+
+      <section class="status-band" data-view="overview">
         <div>
           <span class="label">봇 상태</span>
           <strong id="botStatus" class="status-pill">-</strong>
@@ -71,7 +79,7 @@
         </div>
       </section>
 
-      <section class="grid">
+      <section class="grid" data-view="overview">
         <article class="panel premium-panel">
           <div class="panel-head">
             <div>
@@ -130,7 +138,7 @@
         </article>
       </section>
 
-      <section class="grid lower">
+      <section class="grid lower" data-view="settings">
         <article class="panel">
           <div class="panel-head">
             <div>
@@ -148,14 +156,18 @@
             <label data-strategy-field="premium"><span class="label">매도 괴리율</span><input id="settingSellPremium" type="number" step="0.01" /></label>
             <label data-strategy-field="base"><span class="label">기준가격</span><input id="settingBasePrice" type="number" step="0.1" /></label>
             <label data-strategy-field="base"><span class="label">기준차이가격</span><input id="settingPriceGap" type="number" step="0.1" /></label>
+            <label data-strategy-field="base"><span class="label">로스컷 기준가</span><input id="settingBaseLossCutPrice" type="number" step="0.1" placeholder="비우면 미사용" /></label>
             <label><span class="label">1회 주문금액</span><input id="settingMaxOrder" type="number" step="1000" /></label>
+            <label><span class="label">하루 손실 제한</span><input id="settingDailyMaxLossRate" type="number" step="0.1" /></label>
             <label><span class="label">수동 환율</span><input id="settingManualFx" type="number" step="0.1" /></label>
             <p id="strategyHint" class="hint wide">-</p>
             <button id="saveSettingsButton" class="button primary wide" type="button">설정 저장</button>
           </form>
         </article>
+      </section>
 
-        <article class="panel table-panel">
+      <section class="grid lower" data-view="trades">
+        <article class="panel table-panel wide-panel">
           <div class="panel-head">
             <div>
               <p class="eyebrow">거래내역</p>
@@ -184,7 +196,7 @@
         </article>
       </section>
 
-      <section class="grid lower">
+      <section class="grid lower" data-view="keys">
         <article class="panel">
           <div class="panel-head">
             <div>
@@ -221,7 +233,7 @@
         </article>
       </section>
 
-      <section class="grid lower">
+      <section class="grid lower" data-view="manual">
         <article class="panel">
           <div class="panel-head">
             <div>
@@ -248,6 +260,6 @@
       </section>
     </main>
 
-    <script src="/static/dashboard.js?v=10"></script>
+    <script src="/static/dashboard.js?v=12"></script>
   </body>
 </html>

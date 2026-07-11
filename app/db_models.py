@@ -74,6 +74,7 @@ class BotSetting(Base):
     max_order_amount: Mapped[float] = mapped_column(Float, default=10_000_000, nullable=False)
     daily_max_trade_amount: Mapped[float] = mapped_column(Float, default=50_000_000, nullable=False)
     daily_max_loss_rate: Mapped[float] = mapped_column(Float, default=-1.0, nullable=False)
+    base_loss_cut_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     fx_provider: Mapped[str] = mapped_column(String(20), default="manual", nullable=False)
     manual_usd_krw_rate: Mapped[float] = mapped_column(Float, default=1370.0, nullable=False)
     fx_rate_max_stale_seconds: Mapped[int] = mapped_column(Integer, default=300, nullable=False)

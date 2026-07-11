@@ -23,6 +23,7 @@ const ids = [
   "appView",
   "authMessage",
   "toast",
+  "viewTabs",
   "loginId",
   "password",
   "loginButton",
@@ -61,7 +62,9 @@ const ids = [
   "settingSellPremium",
   "settingBasePrice",
   "settingPriceGap",
+  "settingBaseLossCutPrice",
   "settingMaxOrder",
+  "settingDailyMaxLossRate",
   "settingManualFx",
   "strategyHint",
   "saveSettingsButton",
@@ -81,6 +84,8 @@ const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)])
 let settingsDirty = false;
 let toastTimer = null;
 let latestApiKeys = [];
+let activeView = "overview";
+const mobileViewQuery = window.matchMedia("(max-width: 820px)");
 
 function isEditingSettings() {
   return settingsDirty || el.settingsForm.contains(document.activeElement);
@@ -133,6 +138,21 @@ function showAuth(message = "") {
 function showApp() {
   el.authView.classList.add("hidden");
   el.appView.classList.remove("hidden");
+  setActiveView(activeView, { scroll: false });
+}
+
+function setActiveView(view, options = {}) {
+  activeView = view;
+  const isMobile = mobileViewQuery.matches;
+  for (const section of document.querySelectorAll("[data-view]")) {
+    section.classList.toggle("hidden-view", isMobile && section.dataset.view !== view);
+  }
+  for (const tab of document.querySelectorAll("[data-view-target]")) {
+    tab.classList.toggle("active", tab.dataset.viewTarget === view);
+  }
+  if (!isMobile && options.scroll) {
+    document.querySelector(`[data-view="${view}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 async function api(path, options = {}) {
@@ -296,7 +316,9 @@ function renderSettings(settings) {
   el.settingSellPremium.value = settings.sell_premium_threshold ?? 0.3;
   el.settingBasePrice.value = settings.base_price ?? "";
   el.settingPriceGap.value = settings.price_gap ?? 3;
+  el.settingBaseLossCutPrice.value = settings.base_loss_cut_price ?? "";
   el.settingMaxOrder.value = settings.max_order_amount ?? 10000000;
+  el.settingDailyMaxLossRate.value = settings.daily_max_loss_rate ?? -1.0;
   el.settingManualFx.value = settings.manual_usd_krw_rate ?? 1370;
   updateStrategyFields();
   renderApiKeys(latestApiKeys);
@@ -322,7 +344,12 @@ function renderStrategyHint() {
   const basePrice = Number(el.settingBasePrice.value);
   const priceGap = Number(el.settingPriceGap.value || 0);
   if (strategy === "base_price_gap" && Number.isFinite(basePrice) && basePrice > 0 && Number.isFinite(priceGap)) {
-    el.strategyHint.textContent = `기준가격 전략: 보유 USDT가 없으면 현재가가 ${krw(basePrice - priceGap)} 이하일 때 매수합니다. 매도는 기준가격이 아니라 실제 평균 매수가 + 기준차이가격, 즉 매수 후 평균 매수가보다 ${krw(priceGap)} 올라왔을 때 나갑니다.`;
+    const lossCutPrice = Number(el.settingBaseLossCutPrice.value);
+    const lossCutText =
+      Number.isFinite(lossCutPrice) && lossCutPrice > 0
+        ? ` 로스컷 기준가는 ${krw(lossCutPrice)}입니다.`
+        : " 로스컷 기준가는 비워두면 사용하지 않습니다.";
+    el.strategyHint.textContent = `기준가격 전략: 보유 USDT가 없으면 현재가가 ${krw(basePrice - priceGap)} 이하일 때 매수합니다. 매도는 기준가격이 아니라 실제 평균 매수가 + 기준차이가격, 즉 매수 후 평균 매수가보다 ${krw(priceGap)} 올라왔을 때 나갑니다.${lossCutText}`;
     return;
   }
   if (strategy === "base_price_gap") {
@@ -399,7 +426,9 @@ async function saveSettings() {
     sell_premium_threshold: Number(el.settingSellPremium.value),
     base_price: el.settingBasePrice.value ? Number(el.settingBasePrice.value) : null,
     price_gap: Number(el.settingPriceGap.value),
+    base_loss_cut_price: el.settingBaseLossCutPrice.value ? Number(el.settingBaseLossCutPrice.value) : null,
     max_order_amount: Number(el.settingMaxOrder.value),
+    daily_max_loss_rate: Number(el.settingDailyMaxLossRate.value),
     manual_usd_krw_rate: Number(el.settingManualFx.value),
   };
   await api("/bot/settings", { method: "PUT", body: JSON.stringify(payload) });
@@ -478,6 +507,10 @@ el.settingsForm.addEventListener("change", () => {
   renderApiKeys(latestApiKeys);
   renderStrategyHint();
 });
+for (const tab of document.querySelectorAll("[data-view-target]")) {
+  tab.addEventListener("click", () => setActiveView(tab.dataset.viewTarget, { scroll: true }));
+}
+mobileViewQuery.addEventListener("change", () => setActiveView(activeView, { scroll: false }));
 
 if (token()) {
   showApp();

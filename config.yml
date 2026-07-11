@@ -16,6 +16,7 @@ round_trip_fee_rate: 0.001
 max_order_amount: 10000000
 daily_max_trade_amount: 50000000
 daily_max_loss_rate: -1.0
+base_loss_cut_price:
 paper_mode_days: 14
 
 database_url: sqlite:///./data/trading_bot.db

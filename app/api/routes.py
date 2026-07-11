@@ -125,6 +125,7 @@ def get_bot_settings(request: Request, user: CurrentUser, db: DbSession):
         "max_order_amount": setting.max_order_amount,
         "daily_max_trade_amount": setting.daily_max_trade_amount,
         "daily_max_loss_rate": setting.daily_max_loss_rate,
+        "base_loss_cut_price": setting.base_loss_cut_price,
         "fx_provider": setting.fx_provider,
         "manual_usd_krw_rate": setting.manual_usd_krw_rate,
         "fx_rate_max_stale_seconds": setting.fx_rate_max_stale_seconds,

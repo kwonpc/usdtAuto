@@ -53,6 +53,7 @@ class BotSettingsRequest(BaseModel):
     max_order_amount: float = 10_000_000
     daily_max_trade_amount: float = 50_000_000
     daily_max_loss_rate: float = -1.0
+    base_loss_cut_price: float | None = None
     fx_provider: Literal["manual", "api"] = "manual"
     manual_usd_krw_rate: float = 1370.0
     fx_rate_max_stale_seconds: int = 300

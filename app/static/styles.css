@@ -58,6 +58,39 @@ body {
   color: var(--red);
 }
 
+.view-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 10px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(245, 247, 248, 0.94);
+  backdrop-filter: blur(8px);
+}
+
+.view-tab {
+  flex: 0 0 auto;
+  min-width: 86px;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.view-tab.active {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: #ffffff;
+}
+
 .auth-panel {
   width: min(460px, 100%);
   border: 1px solid var(--line);
@@ -295,6 +328,10 @@ strong {
   grid-template-columns: minmax(280px, 0.6fr) minmax(0, 1.4fr);
 }
 
+.wide-panel {
+  grid-column: 1 / -1;
+}
+
 .panel {
   min-width: 0;
   border-radius: 8px;
@@ -435,9 +472,32 @@ th {
 }
 
 @media (max-width: 820px) {
+  .shell {
+    width: min(100vw - 20px, 1180px);
+    padding-top: 12px;
+  }
+
   .topbar {
     align-items: flex-start;
     flex-direction: column;
+    padding: 16px;
+  }
+
+  .topbar > div:first-child {
+    min-width: 0;
+  }
+
+  .view-tabs {
+    margin-top: 10px;
+    padding: 8px;
+  }
+
+  .view-tab {
+    min-width: 78px;
+  }
+
+  [data-view].hidden-view {
+    display: none;
   }
 
   .actions {
@@ -461,5 +521,9 @@ th {
 
   .premium-panel h2 {
     font-size: 38px;
+  }
+
+  .panel {
+    padding: 16px;
   }
 }

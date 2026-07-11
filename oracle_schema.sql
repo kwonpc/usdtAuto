@@ -59,6 +59,7 @@ CREATE TABLE bot_settings (
     max_order_amount BINARY_DOUBLE DEFAULT 10000000 NOT NULL,
     daily_max_trade_amount BINARY_DOUBLE DEFAULT 50000000 NOT NULL,
     daily_max_loss_rate BINARY_DOUBLE DEFAULT -1.0 NOT NULL,
+    base_loss_cut_price BINARY_DOUBLE,
     fx_provider VARCHAR2(20) DEFAULT 'manual' NOT NULL,
     manual_usd_krw_rate BINARY_DOUBLE DEFAULT 1370.0 NOT NULL,
     fx_rate_max_stale_seconds NUMBER DEFAULT 300 NOT NULL,
