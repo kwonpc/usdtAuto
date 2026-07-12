@@ -12,8 +12,11 @@ compose() {
   fi
 }
 
-echo "[deploy] pulling latest source"
-git pull
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+
+echo "[deploy] force syncing latest source from origin/$BRANCH"
+git fetch origin "$BRANCH"
+git reset --hard "origin/$BRANCH"
 
 if [[ ! -f config_bak.yml ]]; then
   echo "[deploy] config_bak.yml not found" >&2

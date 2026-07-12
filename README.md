@@ -44,7 +44,7 @@ http://localhost:8000/
 ./stop.sh
 ```
 
-- `deploy.sh`: `git pull` 후 `config_bak.yml`을 `config.yml`로 복사하고 컨테이너를 재빌드/기동합니다.
+- `deploy.sh`: 현재 브랜치를 `origin/<branch>` 기준으로 강제 동기화한 뒤 `config_bak.yml`을 `config.yml`로 복사하고 컨테이너를 재빌드/기동합니다.
 - `start.sh`: 기존 이미지/설정으로 컨테이너를 기동합니다.
 - `stop.sh`: 컨테이너를 종료합니다.
 
