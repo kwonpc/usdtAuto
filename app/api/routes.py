@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status as
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import get_db, kst_iso
 from app.db_models import UpbitApiKey, User
 from app.dependencies import current_user
 from app.schemas import ApiKeyCreateRequest, BotSettingsRequest, LoginRequest, ManualSellRequest, RegisterRequest
@@ -67,7 +67,7 @@ def trades(request: Request, user: CurrentUser, db: DbSession, limit: int = Quer
             "total_asset_krw": trade.total_asset_krw,
             "trade_mode": trade.trade_mode,
             "status": trade.status,
-            "created_at": trade.created_at.isoformat(),
+            "created_at": kst_iso(trade.created_at),
         }
         for trade in request.app.state.bot_manager.recent_trades(db, user.id, bot.id, limit)
     ]
@@ -101,7 +101,7 @@ def manual_sell(request: Request, payload: ManualSellRequest, user: CurrentUser,
         "profit": trade.profit,
         "profit_rate": trade.profit_rate,
         "total_asset_krw": trade.total_asset_krw,
-        "created_at": trade.created_at.isoformat(),
+        "created_at": kst_iso(trade.created_at),
     }
 
 
@@ -152,7 +152,7 @@ def list_api_keys(user: CurrentUser, db: DbSession):
             "exchange": key.exchange,
             "name": key.name,
             "is_active": key.is_active,
-            "created_at": key.created_at.isoformat(),
+            "created_at": kst_iso(key.created_at),
         }
         for key in keys
     ]
@@ -169,4 +169,4 @@ def create_api_key(request: Request, payload: ApiKeyCreateRequest, user: Current
     )
     db.add(key)
     db.flush()
-    return {"id": key.id, "name": key.name, "is_active": key.is_active, "created_at": key.created_at.isoformat()}
+    return {"id": key.id, "name": key.name, "is_active": key.is_active, "created_at": kst_iso(key.created_at)}

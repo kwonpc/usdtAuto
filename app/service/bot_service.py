@@ -1,13 +1,13 @@
 import asyncio
 import logging
-from datetime import datetime, time, timezone
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.database import Database, utc_now
+from app.database import Database, kst_day_start_utc, kst_iso, utc_now
 from app.db_models import BotSetting, PriceSnapshot, Trade, TradingBot, UpbitApiKey
 from app.exchange.factory import create_exchange_client
 from app.fx.api_provider import ApiFxRateProvider
@@ -298,7 +298,7 @@ class BotManager:
         )
 
     def today_trade_count(self, db: Session, user_id: int, bot_id: int) -> int:
-        start = datetime.combine(datetime.now(timezone.utc).date(), time.min, tzinfo=timezone.utc)
+        start = kst_day_start_utc()
         return int(
             db.scalar(
                 select(func.count(Trade.id)).where(
@@ -311,7 +311,7 @@ class BotManager:
         )
 
     def today_trade_amount(self, db: Session, user_id: int, bot_id: int) -> float:
-        start = datetime.combine(datetime.now(timezone.utc).date(), time.min, tzinfo=timezone.utc)
+        start = kst_day_start_utc()
         return float(
             db.scalar(
                 select(func.coalesce(func.sum(Trade.price * Trade.volume), 0)).where(
@@ -324,7 +324,7 @@ class BotManager:
         )
 
     def today_profit(self, db: Session, user_id: int, bot_id: int) -> float:
-        start = datetime.combine(datetime.now(timezone.utc).date(), time.min, tzinfo=timezone.utc)
+        start = kst_day_start_utc()
         return float(
             db.scalar(
                 select(func.coalesce(func.sum(Trade.profit), 0)).where(
@@ -360,6 +360,6 @@ class BotManager:
             "todayTradeCount": self.today_trade_count(db, user_id, bot.id),
             "todayProfit": self.today_profit(db, user_id, bot.id),
             "lastSignal": bot.last_signal,
-            "lastSignalAt": bot.last_signal_at.isoformat() if bot.last_signal_at else None,
+            "lastSignalAt": kst_iso(bot.last_signal_at),
             "lastError": bot.last_error,
         }

@@ -1,6 +1,6 @@
 from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 
 from fastapi import Request
@@ -8,6 +8,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import Settings
+
+KST = timezone(timedelta(hours=9), name="KST")
 
 
 class Base(DeclarativeBase):
@@ -20,6 +22,23 @@ def utc_now() -> datetime:
 
 def utc_now_iso() -> str:
     return utc_now().isoformat()
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def kst_iso(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    return _as_utc(value).astimezone(KST).isoformat()
+
+
+def kst_day_start_utc(value: datetime | None = None) -> datetime:
+    base = _as_utc(value or utc_now()).astimezone(KST)
+    return datetime.combine(base.date(), time.min, tzinfo=KST).astimezone(timezone.utc)
 
 
 def _ensure_sqlite_parent(database_url: str) -> None:
