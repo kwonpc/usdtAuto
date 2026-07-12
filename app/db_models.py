@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base, utc_now
@@ -85,6 +85,7 @@ class BotSetting(Base):
 
 class PriceSnapshot(Base):
     __tablename__ = "price_snapshots"
+    __table_args__ = (Index("ix_price_snapshots_bot_latest", "user_id", "bot_id", "id"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True, nullable=False)

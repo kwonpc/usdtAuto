@@ -211,9 +211,11 @@ DB migration files:
 
 - `oracle_migration_add_bithumb_exchange.sql`: 빗썸/거래소 구분 컬럼 추가
 - `oracle_migration_add_risk_controls.sql`: 기준가 로스컷용 `bot_settings.base_loss_cut_price` 컬럼 추가
+- `oracle_migration_add_snapshot_indexes.sql`: 최신 시세 스냅샷 조회 속도 개선용 복합 인덱스 추가
 
 기존 Oracle DB에 빗썸/거래소 구분 컬럼만 추가하려면 `oracle_migration_add_bithumb_exchange.sql`을 적용합니다.
 기존 Oracle DB에 기준가 로스컷 컬럼만 추가하려면 `oracle_migration_add_risk_controls.sql`을 적용합니다.
+기존 Oracle DB에 시세 스냅샷 조회 인덱스만 추가하려면 `oracle_migration_add_snapshot_indexes.sql`을 적용합니다.
 
 ### 테이블 컬럼
 
