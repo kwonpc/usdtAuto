@@ -75,6 +75,9 @@ curl http://localhost:8000/status \
   "base_price": 1500,
   "price_gap": 3,
   "max_order_amount": 10000000,
+  "base_loss_cut_price": 1480,
+  "daily_max_trade_amount": 50000000,
+  "daily_max_loss_rate": -2.5,
   "manual_usd_krw_rate": 1370
 }
 ```
@@ -148,7 +151,13 @@ oracle+oracledb://USER:PASSWORD@HOST:1521/?service_name=SERVICE
 - `price_snapshots`
 - `trades`
 
+DB migration files:
+
+- `oracle_migration_add_bithumb_exchange.sql`: 빗썸/거래소 구분 컬럼 추가
+- `oracle_migration_add_risk_controls.sql`: 기준가 로스컷용 `bot_settings.base_loss_cut_price` 컬럼 추가
+
 기존 Oracle DB에 빗썸/거래소 구분 컬럼만 추가하려면 `oracle_migration_add_bithumb_exchange.sql`을 적용합니다.
+기존 Oracle DB에 기준가 로스컷 컬럼만 추가하려면 `oracle_migration_add_risk_controls.sql`을 적용합니다.
 
 ### 테이블 컬럼
 
@@ -206,6 +215,7 @@ oracle+oracledb://USER:PASSWORD@HOST:1521/?service_name=SERVICE
 | `price_gap` | `Float` |  | 기준차이가격 |
 | `round_trip_fee_rate` | `Float` |  | 왕복 수수료율 |
 | `max_order_amount` | `Float` |  | 1회 최대 주문금액 |
+| `base_loss_cut_price` | `Float` | Nullable | 기준가 전략 로스컷 기준가. 비어 있으면 미사용 |
 | `daily_max_trade_amount` | `Float` |  | 일일 최대 거래금액 |
 | `daily_max_loss_rate` | `Float` |  | 일일 최대 손실률 |
 | `fx_provider` | `String(20)` |  | `manual` 또는 `api` |
