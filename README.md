@@ -18,6 +18,7 @@
 - SQLAlchemy 기반 DB 계층
 - SQLite 개발 실행, Oracle Cloud ATP/ADB 전자지갑 연결 지원
 - Docker / Docker Compose 구성 및 배포 helper 스크립트
+- `logs/app.log` 파일 로그 저장 및 회전
 
 ## 실행
 
@@ -48,6 +49,24 @@ http://localhost:8000/
 - `stop.sh`: 컨테이너를 종료합니다.
 
 서버에는 민감정보가 들어간 `config_bak.yml`을 별도로 만들어두고, Git에는 올리지 않습니다. Ubuntu 20.04 minimal + 구버전 Docker Compose 기준 전체 명령은 `DEPLOY_UBUNTU_20_04.md`를 참고합니다.
+
+## 로그
+
+앱 로그는 컨테이너 stdout과 함께 `logs/app.log`에도 저장됩니다. Docker Compose 실행 시 `./logs:/app/logs`로 마운트되므로 컨테이너를 재시작해도 서버의 `logs/` 폴더에 남습니다.
+
+```bash
+docker-compose logs -f
+tail -f logs/app.log
+```
+
+기본값은 10MB 단위로 최대 5개 백업 파일까지 회전 저장합니다. 필요하면 `config.yml` 또는 환경변수로 아래 값을 조정합니다.
+
+```yaml
+log_dir: logs
+log_level: INFO
+log_max_bytes: 10485760
+log_backup_count: 5
+```
 
 ## 로컬 개발 실행
 

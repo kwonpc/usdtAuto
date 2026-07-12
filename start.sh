@@ -12,7 +12,6 @@ compose() {
   fi
 }
 
-mkdir -p data
+mkdir -p data logs
 compose up -d
 compose ps
-

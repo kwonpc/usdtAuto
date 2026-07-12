@@ -6,11 +6,13 @@ from fastapi.staticfiles import StaticFiles
 from app.api.routes import router
 from app.config import get_settings
 from app.database import Database
+from app.logging_config import configure_logging
 from app.service.bot_service import BotManager
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    configure_logging(settings)
     database = Database(settings)
     database.init()
 

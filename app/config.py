@@ -38,6 +38,10 @@ class Settings(BaseModel):
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 60 * 24
     encryption_key: str | None = None
+    log_dir: str = "logs"
+    log_level: str = "INFO"
+    log_max_bytes: int = 10 * 1024 * 1024
+    log_backup_count: int = 5
 
 
 @lru_cache
@@ -57,6 +61,10 @@ def get_settings() -> Settings:
         "ENCRYPTION_KEY",
         "UPBIT_BASE_URL",
         "BITHUMB_BASE_URL",
+        "LOG_DIR",
+        "LOG_LEVEL",
+        "LOG_MAX_BYTES",
+        "LOG_BACKUP_COUNT",
     }
     raw.update({k.lower(): v for k, v in os.environ.items() if k in env_keys})
     return Settings(**raw)

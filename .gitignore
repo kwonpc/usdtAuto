@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 venv/
 data/
+logs/
 trading_bot.db
 wallet/
 Wallet_*/

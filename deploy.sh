@@ -23,12 +23,11 @@ fi
 echo "[deploy] restoring config.yml from config_bak.yml"
 cp config_bak.yml config.yml
 
-echo "[deploy] ensuring data directory exists"
-mkdir -p data
+echo "[deploy] ensuring runtime directories exist"
+mkdir -p data logs
 
 echo "[deploy] rebuilding and starting containers"
 compose up -d --build
 
 echo "[deploy] current containers"
 compose ps
-
