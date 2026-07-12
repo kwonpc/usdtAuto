@@ -285,6 +285,7 @@ class BotManager:
             select(PriceSnapshot)
             .where(PriceSnapshot.user_id == user_id, PriceSnapshot.bot_id == bot_id)
             .order_by(PriceSnapshot.id.desc())
+            .limit(1)
         )
 
     def recent_trades(self, db: Session, user_id: int, bot_id: int, limit: int = 50) -> list[Trade]:
